@@ -14,9 +14,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-  <script src="firebase-config.js"></script>
-<script src="firebase-services.js"></script>
-<script src="app.js"></script>
 </head>
 <body class="light-theme auth-active">
 
@@ -681,10 +678,12 @@
     </div>
   </div>
 
+  <!-- FIREBASE AND CONFIGURATION SCRIPTS -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js"></script>
+  <!-- firebase-config.js MUST load BEFORE firebase-services.js -->
+  <script src="firebase-config.js?v=20261108-v3"></script>
   <script src="api-config.js?v=20261108-cloudinary-v9"></script>
   <script src="firebase-services.js?v=20261108-cloudinary-v9"></script>
   <script src="app.js?v=20261108-cloudinary-v9"></script>
