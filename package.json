@@ -1,0 +1,29 @@
+{
+  "name": "ai_digital_flashcard",
+  "version": "1.0.0",
+  "description": "SAPC AI Academic Reviewer",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google-cloud/text-to-speech": "^7.2.0",
+    "ai": "^7.0.154",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.3",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^13.5.0",
+    "google-auth-library": "^9.15.1",
+    "groq-sdk": "^0.3.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.24.7",
+    "open": "^11.0.4",
+    "openai": "^7.45.1",
+    "protobufjs": "^7.6.6",
+    "sqlite3": "^5.1.7"
+  }
+}
