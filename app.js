@@ -1,4 +1,4 @@
-﻿// --- HARDCODED DEVELOPER CONFIGURATION FOR GRADE SECTIONS AND STRANDS ---
+// --- HARDCODED DEVELOPER CONFIGURATION FOR GRADE SECTIONS AND STRANDS ---
 const grade11Sections = ["Excellence", "Resilience", "Discipline", "Accountability", "Stewardship"];
 const grade12Strands = ["STEM", "ABM", "HUMSS", "TVL-ICT", "TVL-HE"];
 
@@ -241,48 +241,6 @@ function stopSpeech(clearAuto = true) {
     window.speechSynthesis.cancel();
   }
   resetSpeakingState();
-}
-
-function handleAutoNarrateNext() {
-  if (!isAutoNarrating || cards.length === 0) return;
-
-  const isFlipped = getElement("card").classList.contains("flipped");
-
-  if (!isFlipped) {
-    autoNarrateTimeout = setTimeout(() => {
-      if (!isAutoNarrating) return;
-      getElement("card").classList.add("flipped");
-
-      autoNarrateTimeout = setTimeout(() => {
-        if (!isAutoNarrating) return;
-        let fullAnswer = cards[i].answer;
-        if (cards[i].explanation) {
-          fullAnswer += ". Explanation: " + cards[i].explanation;
-        }
-        const backPlayBtn = getElement("back").querySelector(".play-pause-btn");
-        speakText(fullAnswer, backPlayBtn);
-      }, 600);
-    }, 1200);
-  } else {
-    getElement("nav-friends-btn")?.classList.add("hidden");
-    autoNarrateTimeout = setTimeout(() => {
-      if (!isAutoNarrating) return;
-      if (i >= cards.length - 1) {
-        showDeckSummary();
-        return;
-      }
-      i++;
-      show(false);
-
-      autoNarrateTimeout = setTimeout(() => {
-        if (!isAutoNarrating) return;
-        const frontPlayBtn = getElement("front").querySelector(".play-pause-btn");
-        if (frontPlayBtn) {
-          speakText(cleanQuestionDisplay(cards[i].question), frontPlayBtn);
-        }
-      }, 600);
-    }, 1500);
-  }
 }
 
 function speakText(text, btnElement) {
@@ -944,7 +902,7 @@ function fileToBase64(file) {
 async function extractTextFromDocument(file, onProgress = () => {}) {
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   const maxPdfPages = 100;
-  const maxExtractedCharacters = 10000;
+  const maxExtractedCharacters = 50000;
 
   if (ext === "txt" || file.type === "text/plain") {
     return await file.text();
@@ -1198,7 +1156,7 @@ if (getElement("generate")) {
       }
 
       const combinedNotes = (notes + "\n" + extractedDocsText).trim();
-      const maxModelInputCharacters = 10000;
+      const maxModelInputCharacters = 50000;
       const modelNotes = combinedNotes.length > maxModelInputCharacters
         ? `${combinedNotes.slice(0, maxModelInputCharacters)}\n\n[Remaining material omitted to fit the AI request limit.]`
         : combinedNotes;
@@ -2038,23 +1996,27 @@ if (shareDeckBtn) shareDeckBtn.addEventListener("click", async () => {
   }
 });
 
-function friendName(friend, userId) {
-  return friend.fromId === userId ? friend.toName : friend.fromName;
-}
-function friendId(friend, userId) {
-  return friend.fromId === userId ? friend.toId : friend.fromId;
-}
 function isProfileOnline(profile) {
   const value = profile?.lastSeenAt;
   const timestamp = typeof value?.toMillis === "function" ? value.toMillis() : new Date(value || 0).getTime();
   return Number.isFinite(timestamp) && Date.now() - timestamp < 120000;
 }
+
+function friendName(friend, userId) {
+  return friend.fromId === userId ? friend.toName : friend.fromName;
+}
+
+function friendId(friend, userId) {
+  return friend.fromId === userId ? friend.toId : friend.fromId;
+}
+
 function appendPresence(identity, profile) {
   const presence = document.createElement("small");
   presence.className = `friend-presence${isProfileOnline(profile) ? " online" : ""}`;
   presence.textContent = isProfileOnline(profile) ? "Online" : "Offline";
   identity.append(presence);
 }
+
 function showFriendProfile(profile) {
   const modal = getElement("friend-profile-modal");
   if (!modal) return;
@@ -2080,123 +2042,123 @@ function showFriendProfile(profile) {
   modal.classList.remove("hidden");
 }
 
-  let activeChatProfile = null;
-  let chatSubscription = null;
-  let chatAttachmentPreviewUrl = null;
-  function clearChatAttachmentPreview() {
-    const preview = getElement("chat-attachment-preview");
-    if (chatAttachmentPreviewUrl) URL.revokeObjectURL(chatAttachmentPreviewUrl);
-    chatAttachmentPreviewUrl = null;
-    if (preview) {
-      preview.replaceChildren();
-      preview.classList.add("hidden");
-    }
+let activeChatProfile = null;
+let chatSubscription = null;
+let chatAttachmentPreviewUrl = null;
+
+function clearChatAttachmentPreview() {
+  const preview = getElement("chat-attachment-preview");
+  if (chatAttachmentPreviewUrl) URL.revokeObjectURL(chatAttachmentPreviewUrl);
+  chatAttachmentPreviewUrl = null;
+  if (preview) {
+    preview.replaceChildren();
+    preview.classList.add("hidden");
   }
-  getElement("chat-attachment")?.addEventListener("change", event => {
-    const file = event.target.files?.[0];
-    const preview = getElement("chat-attachment-preview");
-    if (!file || !preview) {
-      clearChatAttachmentPreview();
-      return;
-    }
-    if (file.size > 30 * 1024 * 1024) {
-      event.target.value = "";
-      clearChatAttachmentPreview();
-      const status = getElement("chat-status");
+}
+
+getElement("chat-attachment")?.addEventListener("change", event => {
+  const file = event.target.files?.[0];
+  const preview = getElement("chat-attachment-preview");
+  if (!file || !preview) {
+    clearChatAttachmentPreview();
+    return;
+  }
+  if (file.size > 30 * 1024 * 1024) {
+    event.target.value = "";
+    clearChatAttachmentPreview();
+    const status = getElement("chat-status");
+    if (status) {
       status.textContent = "Attachments must be 30 MB or smaller.";
       status.className = "friend-status error";
-      return;
     }
+    return;
+  }
+  clearChatAttachmentPreview();
+  chatAttachmentPreviewUrl = URL.createObjectURL(file);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "chat-attachment-remove";
+  remove.textContent = "×";
+  remove.setAttribute("aria-label", "Remove attachment");
+  remove.addEventListener("click", () => {
+    event.target.value = "";
     clearChatAttachmentPreview();
-    chatAttachmentPreviewUrl = URL.createObjectURL(file);
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "chat-attachment-remove";
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", "Remove attachment");
-    remove.addEventListener("click", () => {
-      event.target.value = "";
-      clearChatAttachmentPreview();
-    });
-    if (file.type.startsWith("image/")) {
-      const image = document.createElement("img");
-      image.src = chatAttachmentPreviewUrl;
-      image.alt = file.name;
-      preview.append(image);
-    }
-    const name = document.createElement("span");
-    name.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
-    preview.append(name, remove);
-    preview.classList.remove("hidden");
   });
-  function renderChatMessages(messages, user) {
-    const container = getElement("chat-messages");
-    if (!user || !container) return;
-    container.replaceChildren();
-    messages.forEach(message => {
-      const bubble = document.createElement("div");
-      bubble.className = `chat-bubble${message.senderId === user.uid ? " own" : ""}`;
-      if (message.text) {
-        const text = document.createElement("div");
-        const urlPattern = /https?:\/\/[^\s]+/g;
-        let cursor = 0;
-        String(message.text).replace(urlPattern, (url, offset) => {
-          text.append(document.createTextNode(String(message.text).slice(cursor, offset)));
-          const link = document.createElement("a");
-          link.href = url;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.textContent = url;
-          text.append(link);
-          cursor = offset + url.length;
-          return url;
-        });
-        text.append(document.createTextNode(String(message.text).slice(cursor)));
-        bubble.append(text);
-      }
-      if (message.attachment) {
-        const isImage = message.attachment.mimeType.startsWith("image/");
-        const attachment = document.createElement(isImage ? "img" : "a");
-        attachment.className = "chat-attachment";
-        if (isImage) attachment.src = message.attachment.url;
-        else attachment.href = message.attachment.url;
-        attachment.target = "_blank";
-        attachment.rel = "noopener noreferrer";
-        attachment.alt = message.attachment.name;
-        attachment.textContent = isImage ? "" : `Open ${message.attachment.name}`;
-        bubble.append(attachment);
-      }
-      const meta = document.createElement("small");
-      const timestamp = message.createdAt?.toDate ? message.createdAt.toDate() : new Date();
-      const status = message.senderId === user.uid ? (message.seenBy && Object.keys(message.seenBy).length ? "Seen" : "Delivered") : "";
-      meta.textContent = `${timestamp.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${status ? ` · ${status}` : ""}`;
-      meta.className = "chat-meta";
-      bubble.append(meta);
-      container.append(bubble);
-    });
-    container.scrollTop = container.scrollHeight;
+  if (file.type.startsWith("image/")) {
+    const image = document.createElement("img");
+    image.src = chatAttachmentPreviewUrl;
+    image.alt = file.name;
+    preview.append(image);
   }
-  async function loadChatMessages() {
-    if (!activeChatProfile) return;
-    const user = window.sapcFirebase?.getCurrentUser();
-    if (!user) return;
-    try {
-      const messages = await window.sapcFirebase.listChatMessages(user, activeChatProfile);
-      await window.sapcFirebase.markChatMessagesSeen(user, activeChatProfile, messages);
-      renderChatMessages(messages, user);
-    } catch (error) {
-      const status = getElement("chat-status");
-      if (status) {
-        status.textContent = error.message;
-        status.className = "friend-status error";
-      }
+  const name = document.createElement("span");
+  name.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+  preview.append(name, remove);
+  preview.classList.remove("hidden");
+});
+
+function renderChatMessages(messages, user) {
+  const container = getElement("chat-messages");
+  if (!user || !container) return;
+  container.replaceChildren();
+  
+  messages.forEach(message => {
+    const bubble = document.createElement("div");
+    bubble.className = `chat-bubble${message.senderId === user.uid ? " own" : ""}`;
+    
+    if (message.text) {
+      const text = document.createElement("div");
+      const urlPattern = /https?:\/\/[^\s]+/g;
+      let cursor = 0;
+      String(message.text).replace(urlPattern, (url, offset) => {
+        text.append(document.createTextNode(String(message.text).slice(cursor, offset)));
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = url;
+        text.append(link);
+        cursor = offset + url.length;
+        return url;
+      });
+      text.append(document.createTextNode(String(message.text).slice(cursor)));
+      bubble.append(text);
     }
-  }
-  async function openChat(profile) {
-    activeChatProfile = profile;
-    getElement("chat-title").textContent = `Chat with ${profile.displayName || "Paduan"}`;
-    const peerPhoto = getElement("chat-peer-photo");
-    const peerAvatar = getElement("chat-peer-avatar");
+    
+    if (message.attachment) {
+      const isImage = message.attachment.mimeType?.startsWith("image/");
+      const attachment = document.createElement(isImage ? "img" : "a");
+      attachment.className = "chat-attachment";
+      if (isImage) attachment.src = message.attachment.url;
+      else attachment.href = message.attachment.url;
+      attachment.target = "_blank";
+      attachment.rel = "noopener noreferrer";
+      attachment.alt = message.attachment.name || "Attachment";
+      attachment.textContent = isImage ? "" : `Open ${message.attachment.name || "File"}`;
+      bubble.append(attachment);
+    }
+    
+    const meta = document.createElement("small");
+    const timestamp = message.createdAt?.toDate ? message.createdAt.toDate() : new Date();
+    const status = message.senderId === user.uid ? (message.seenBy && Object.keys(message.seenBy).length ? "Seen" : "Delivered") : "";
+    meta.textContent = `${timestamp.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${status ? ` · ${status}` : ""}`;
+    meta.className = "chat-meta";
+    bubble.append(meta);
+    container.append(bubble);
+  });
+  
+  container.scrollTop = container.scrollHeight;
+}
+
+async function openChat(profile) {
+  if (!profile) return;
+  activeChatProfile = profile;
+  
+  const chatTitle = getElement("chat-title");
+  if (chatTitle) chatTitle.textContent = `Chat with ${profile.displayName || "Paduan"}`;
+  
+  const peerPhoto = getElement("chat-peer-photo");
+  const peerAvatar = getElement("chat-peer-avatar");
+  if (peerPhoto && peerAvatar) {
     peerPhoto.classList.toggle("hidden", !profile.photoURL);
     peerAvatar.classList.toggle("hidden", Boolean(profile.photoURL));
     peerAvatar.textContent = (profile.displayName || "P").charAt(0).toUpperCase();
@@ -2204,73 +2166,121 @@ function showFriendProfile(profile) {
       peerPhoto.src = profile.photoURL;
       peerPhoto.alt = `${profile.displayName || "Paduan"} profile photo`;
     }
-    getElement("chat-peer-status").textContent = isProfileOnline(profile) ? "Online" : "Offline";
-    getElement("chat-modal").classList.remove("hidden");
-    getElement("chat-input").focus();
-    try {
-      await window.sapcFirebase.ensureChatIdentity(window.sapcFirebase.getCurrentUser());
-      await window.sapcFirebase.ensureChatConversation(window.sapcFirebase.getCurrentUser(), profile);
-      if (chatSubscription) chatSubscription();
+  }
+  
+  const peerStatus = getElement("chat-peer-status");
+  if (peerStatus) peerStatus.textContent = isProfileOnline(profile) ? "Online" : "Offline";
+  
+  getElement("chat-modal")?.classList.remove("hidden");
+  getElement("chat-input")?.focus();
+  
+  const user = window.sapcFirebase?.getCurrentUser();
+  if (!user) return;
+  
+  const status = getElement("chat-status");
+  if (status) {
+    status.textContent = "";
+    status.className = "friend-status";
+  }
+
+  try {
+    if (window.sapcFirebase.ensureChatIdentity) {
+      await window.sapcFirebase.ensureChatIdentity(user);
+    }
+    if (window.sapcFirebase.ensureChatConversation) {
+      await window.sapcFirebase.ensureChatConversation(user, profile);
+    }
+    
+    if (chatSubscription) chatSubscription();
+    
+    if (window.sapcFirebase.subscribeToChatMessages) {
       chatSubscription = window.sapcFirebase.subscribeToChatMessages(
-        window.sapcFirebase.getCurrentUser(),
+        user,
         profile,
         messages => {
-          const user = window.sapcFirebase.getCurrentUser();
-          if (user && activeChatProfile === profile) {
-            renderChatMessages(messages, user);
-            window.sapcFirebase.markChatMessagesSeen(user, profile, messages).catch(error => {
-              console.error("Could not mark chat messages as seen:", error);
-            });
+          const currentUser = window.sapcFirebase.getCurrentUser();
+          if (currentUser && activeChatProfile?.uid === profile.uid) {
+            renderChatMessages(messages, currentUser);
+            if (window.sapcFirebase.markChatMessagesSeen) {
+              window.sapcFirebase.markChatMessagesSeen(currentUser, profile, messages).catch(() => {});
+            }
           }
         }
       );
-    } catch (error) {
-      const status = getElement("chat-status");
-      status.textContent = error.message;
+    } else if (window.sapcFirebase.listChatMessages) {
+      const messages = await window.sapcFirebase.listChatMessages(user, profile);
+      renderChatMessages(messages, user);
+    }
+  } catch (error) {
+    if (status) {
+      status.textContent = error.message || "Failed to initialize chat.";
       status.className = "friend-status error";
     }
   }
-  getElement("close-chat-btn")?.addEventListener("click", () => {
-    if (chatSubscription) chatSubscription();
-    chatSubscription = null;
-    activeChatProfile = null;
-    getElement("chat-modal")?.classList.add("hidden");
-  });
-  getElement("chat-form")?.addEventListener("submit", async event => {
-    event.preventDefault();
-    const user = window.sapcFirebase?.getCurrentUser();
-    const input = getElement("chat-input");
-    const text = input.value.trim();
-    const attachmentInput = getElement("chat-attachment");
-    const file = attachmentInput?.files?.[0];
-    if (!user || !activeChatProfile || (!text && !file)) return;
-    const button = event.currentTarget.querySelector("button");
-    button.disabled = true;
-    const status = getElement("chat-status");
-    try {
-      status.textContent = file ? "Uploading attachment…" : "Sending…";
+}
+
+getElement("close-chat-btn")?.addEventListener("click", () => {
+  if (chatSubscription) chatSubscription();
+  chatSubscription = null;
+  activeChatProfile = null;
+  getElement("chat-modal")?.classList.add("hidden");
+});
+
+getElement("chat-form")?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const user = window.sapcFirebase?.getCurrentUser();
+  const input = getElement("chat-input");
+  const text = input ? input.value.trim() : "";
+  const attachmentInput = getElement("chat-attachment");
+  const file = attachmentInput?.files?.[0];
+  
+  if (!user || !activeChatProfile || (!text && !file)) return;
+  
+  const button = event.currentTarget.querySelector("button[type='submit']");
+  if (button) button.disabled = true;
+  
+  const status = getElement("chat-status");
+  try {
+    if (status) {
+      status.textContent = file ? "Uploading attachment..." : "Sending...";
       status.className = "friend-status";
-      let attachment;
-      if (file) {
-        const url = await window.sapcFirebase.uploadChatAttachment(user, file);
-        attachment = { url, name: file.name, mimeType: file.type || "application/octet-stream" };
-      }
+    }
+    
+    let attachment;
+    if (file && window.sapcFirebase.uploadChatAttachment) {
+      const url = await window.sapcFirebase.uploadChatAttachment(user, file);
+      attachment = { url, name: file.name, mimeType: file.type || "application/octet-stream" };
+    }
+    
+    if (window.sapcFirebase.sendChatMessage) {
       await window.sapcFirebase.sendChatMessage(user, activeChatProfile, { text, attachment });
-      input.value = "";
-      if (attachmentInput) attachmentInput.value = "";
-      clearChatAttachmentPreview();
+    }
+    
+    if (input) input.value = "";
+    if (attachmentInput) attachmentInput.value = "";
+    clearChatAttachmentPreview();
+    
+    if (status) {
       status.textContent = "Sent";
       status.className = "friend-status success";
-    } catch (error) {
-      status.textContent = error.message;
-      status.className = "friend-status error";
-    } finally {
-      button.disabled = false;
+      setTimeout(() => {
+        if (status.textContent === "Sent") status.textContent = "";
+      }, 2000);
     }
-  });
+  } catch (error) {
+    if (status) {
+      status.textContent = error.message || "Could not send message.";
+      status.className = "friend-status error";
+    }
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+
 ["close-friend-profile-btn", "close-friend-profile-footer-btn"].forEach(id => {
   getElement(id)?.addEventListener("click", () => getElement("friend-profile-modal")?.classList.add("hidden"));
 });
+
 async function shareCurrentDeckWithFriend(friend, user) {
   if (!cards.length) throw new Error("Generate or open a deck before sharing it.");
   const shareId = await window.sapcFirebase.createShare(user, {
@@ -2283,6 +2293,7 @@ async function shareCurrentDeckWithFriend(friend, user) {
   await navigator.clipboard.writeText(link);
   alert(`Deck link copied. Send it to ${friendName(friend, user.uid)}.`);
 }
+
 function renderFriendItems(items, containerId, renderItem) {
   const container = getElement(containerId);
   if (!container) return;
@@ -2295,6 +2306,7 @@ function renderFriendItems(items, containerId, renderItem) {
   }
   items.forEach(item => container.append(renderItem(item)));
 }
+
 async function loadFriends() {
   const user = window.sapcFirebase?.getCurrentUser();
   if (!user || !window.sapcFirebase?.listFriends) return;
@@ -2832,6 +2844,8 @@ document.addEventListener("keydown", (e) => {
 async function loadSharedDeck() {
   const shareId = new URLSearchParams(window.location.search).get("share");
   if (!shareId || !window.sapcFirebase?.getSharedDeck) return;
+  const sharedDeck = await window.sapcFirebase.getSharedDeck(shareId);
+  if (!sharedDeck) return;
   await openSharedDeckLink(window.location.href);
 }
 
