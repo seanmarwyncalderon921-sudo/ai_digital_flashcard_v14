@@ -63,8 +63,7 @@
   async function encryptChatPayload(user, otherProfile, payload) {
     const key = await deriveChatKey(user, otherProfile);
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const dataToEncrypt = typeof payload === "string" ? { text: payload } : (payload || {});
-    const encoded = new TextEncoder().encode(JSON.stringify(dataToEncrypt));
+    const encoded = new TextEncoder().encode(JSON.stringify(payload));
     const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
     return {
       ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
@@ -73,18 +72,14 @@
   }
 
   async function decryptChatPayload(user, otherProfile, message) {
-    if (!message.ciphertext || !message.iv) {
-      return { text: message.text || "" };
-    }
+    const key = await deriveChatKey(user, otherProfile);
+    const decode = value => Uint8Array.from(atob(value), character => character.charCodeAt(0));
+    const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: decode(message.iv) }, key, decode(message.ciphertext));
+    const decoded = new TextDecoder().decode(plaintext);
     try {
-      const key = await deriveChatKey(user, otherProfile);
-      const decode = value => Uint8Array.from(atob(value), character => character.charCodeAt(0));
-      const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: decode(message.iv) }, key, decode(message.ciphertext));
-      const decoded = new TextDecoder().decode(plaintext);
       return JSON.parse(decoded);
     } catch (error) {
-      console.warn("Could not decrypt message payload:", error);
-      return { text: message.text || "[Encrypted Message]" };
+      return { text: decoded };
     }
   }
 
@@ -191,28 +186,39 @@
     ensureChatIdentity,
     ensureChatConversation,
     sendChatMessage: async (user, otherProfile, payload) => {
-      const payloadObj = typeof payload === "string" ? { text: payload } : payload;
-      let encrypted = { ciphertext: "", iv: "" };
-      try {
-        encrypted = await encryptChatPayload(user, otherProfile, payloadObj);
-      } catch (e) {
-        console.warn("E2EE encryption skipped/failed:", e);
-      }
-      const conversation = db.collection("chatConversations").doc(chatConversationId(user.uid, otherProfile.id));
+      const encrypted = await encryptChatPayload(user, otherProfile, payload);
+      const conversationId = chatConversationId(user.uid, otherProfile.id);
+      const conversation = db.collection("chatConversations").doc(conversationId);
       await conversation.collection("messages").add({
         senderId: user.uid,
-        messageType: payloadObj.attachment ? "attachment" : "text",
-        text: payloadObj.text || "",
-        attachment: payloadObj.attachment || null,
+        messageType: payload.attachment ? "attachment" : "text",
         deliveredAt: null,
         seenBy: {},
         ...encrypted,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      await conversation.set({
-        lastMessage: payloadObj.text || "Attachment",
+    },
+    unsendChatMessage: async (user, otherProfile, messageId) => {
+      const conversationId = chatConversationId(user.uid, otherProfile.id);
+      const messageRef = db.collection("chatConversations").doc(conversationId)
+        .collection("messages").doc(messageId);
+      
+      const doc = await messageRef.get();
+      if (!doc.exists) throw new Error("Message not found.");
+      if (doc.data().senderId !== user.uid) throw new Error("You can only unsend your own messages.");
+
+      const encrypted = await encryptChatPayload(user, otherProfile, {
+        text: "This message was unsent",
+        attachment: null,
+        isUnsent: true
+      });
+
+      await messageRef.update({
+        ...encrypted,
+        messageType: "text",
+        isUnsent: true,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      });
     },
     uploadChatAttachment: async (user, file) => {
       const allowed = file.type.startsWith("image/") || file.type === "application/pdf";
@@ -251,8 +257,8 @@
           createdAt: data.createdAt,
           deliveredAt: data.deliveredAt,
           seenBy: data.seenBy || {},
-          text: payload.text || data.text || "",
-          attachment: payload.attachment || data.attachment || null
+          isUnsent: data.isUnsent || false,
+          ...payload
         });
       }
       return messages;
@@ -273,8 +279,8 @@
             createdAt: data.createdAt,
             deliveredAt: data.deliveredAt,
             seenBy: data.seenBy || {},
-            text: payload.text || data.text || "",
-            attachment: payload.attachment || data.attachment || null
+            isUnsent: data.isUnsent || false,
+            ...payload
           });
         }
         callback(messages);
@@ -283,7 +289,8 @@
       });
     },
     markChatMessagesSeen: async (user, otherProfile, messages) => {
-      const conversation = db.collection("chatConversations").doc(chatConversationId(user.uid, otherProfile.id));
+      const conversationId = chatConversationId(user.uid, otherProfile.id);
+      const conversation = db.collection("chatConversations").doc(conversationId);
       await Promise.all(messages.filter(message => message.senderId !== user.uid && !message.seenBy?.[user.uid]).map(message =>
         conversation.collection("messages").doc(message.id).update({
           deliveredAt: firebase.firestore.FieldValue.serverTimestamp(),
